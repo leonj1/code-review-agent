@@ -24,19 +24,19 @@ RUN pip install --upgrade pip && \
     pip install -r requirements.txt && \
     pip install -r requirements-test.txt
 
-# Copy source code
-COPY claude_service.py .
-COPY code_review_agent.py .
-COPY test_fixer.py .
-COPY test_main.py .
-COPY test_test_fixer.py .
+# Copy source code and tests
+COPY src/ ./src/
+COPY tests/ ./tests/
+COPY examples/ ./examples/
 
 # Create .env file with dummy values for tests (if needed)
 RUN echo "# Dummy .env for testing" > .env
 
+# Set PYTHONPATH to include source directory
+ENV PYTHONPATH=/app/src:$PYTHONPATH
+
 # Run tests with verbose output and coverage
-# Note: Only running test_test_fixer.py as test_main.py requires cli_tools dependency
-CMD ["pytest", "-v", "test_test_fixer.py", "--cov=test_fixer", "--cov-report=term-missing"]
+CMD ["pytest", "-v", "tests/", "--cov=src", "--cov-report=term-missing"]
 
 # Alternative: To run all tests (requires cli_tools.py), use:
 # CMD ["pytest", "-v", "--cov=.", "--cov-report=term-missing", "--cov-report=html"]
