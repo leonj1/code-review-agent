@@ -308,9 +308,6 @@ class Service{i}:
                 yield
             raise asyncio.TimeoutError("Claude service timeout")
 
-        # Replace receive_response with our timeout generator
-        original_receive_response = fake_service.receive_response
-
         async def patched_receive_response():
             async for item in timeout_generator():
                 yield item
