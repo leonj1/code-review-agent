@@ -35,7 +35,6 @@ make docker-test
 |--------|------------|--------|----------|------------------|
 | claude_service.py | 60 | 19 | 68% | Error handling paths |
 | cli_tools.py | 30 | 19 | 37% | User input functions |
-| code_review_agent.py | 41 | 12 | 71% | Main execution flow |
 | refactoring_agent.py | 320 | 18 | **94%** | Service initialization |
 | test_fixer.py | 194 | 35 | 82% | Interactive prompts |
 
