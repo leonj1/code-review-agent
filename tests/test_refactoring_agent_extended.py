@@ -498,7 +498,7 @@ async def fetch():
         agent.current_source = "class TaxCalculator: pass"
 
         prompt = agent._build_refactoring_prompt(
-            class_info, func, "TaxService", []
+            func, "TaxService", []
         )
 
         assert "calculate_tax" in prompt
