@@ -1,0 +1,46 @@
+# Dockerfile for running tests in an isolated environment
+FROM python:3.11-slim
+
+# Set working directory
+WORKDIR /app
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Install system dependencies (if needed)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements files first (for better layer caching)
+COPY requirements.txt requirements-test.txt ./
+
+# Install Python dependencies
+RUN pip install --upgrade pip && \
+    pip install -r requirements.txt && \
+    pip install -r requirements-test.txt
+
+# Copy source code
+COPY claude_service.py .
+COPY code_review_agent.py .
+COPY test_fixer.py .
+COPY test_main.py .
+COPY test_test_fixer.py .
+
+# Create .env file with dummy values for tests (if needed)
+RUN echo "# Dummy .env for testing" > .env
+
+# Run tests with verbose output and coverage
+# Note: Only running test_test_fixer.py as test_main.py requires cli_tools dependency
+CMD ["pytest", "-v", "test_test_fixer.py", "--cov=test_fixer", "--cov-report=term-missing"]
+
+# Alternative: To run all tests (requires cli_tools.py), use:
+# CMD ["pytest", "-v", "--cov=.", "--cov-report=term-missing", "--cov-report=html"]
+
+# Health check: Verify pytest is installed
+HEALTHCHECK --interval=30s --timeout=3s \
+    CMD python -c "import pytest" || exit 1

@@ -17,27 +17,37 @@ aspect of code quality:
 
 Usage:
     # Interactive mode - prompts for file path
-    python 7_code_reviewer.py --model sonnet
-    
+    python code_review_agent.py --model sonnet
+
     # Automatic mode - reviews file immediately
-    python 7_code_reviewer.py --model sonnet --file path/to/file.py
-    
+    python code_review_agent.py --model sonnet --file path/to/file.py
+
     # With stats output
-    python 7_code_reviewer.py --model sonnet --file 0_querying.py --stats true
+    python code_review_agent.py --model sonnet --file test_fixer.py --stats true
 """
 
 from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions, AgentDefinition
 from rich import print
 from rich.console import Console
 from cli_tools import print_rich_message, parse_and_print_message, get_user_input
+from claude_service import IClaudeService, ClaudeServiceImpl
 from dotenv import load_dotenv
+from typing import Optional
 import argparse
 load_dotenv()
 
 
-async def main():
+async def main(claude_service: Optional[IClaudeService] = None):
+    """
+    Main entry point for the code review agent.
+
+    Args:
+        claude_service: Optional IClaudeService implementation. If None, creates
+                       a real ClaudeServiceImpl. This parameter enables dependency
+                       injection for testing.
+    """
     console = Console()
-    
+
     # Create custom parser for code reviewer
     parser = argparse.ArgumentParser(description="Code Review Agent with Specialized Sub-Agents")
     parser.add_argument("--model", "-m", default="sonnet", help="Model to use (sonnet, opus, haiku)")
@@ -341,13 +351,17 @@ This agent uses 9 specialized sub-agents to perform comprehensive code reviews:
 Selected model: {args.model}
 
 To get started, provide the path to the file you want to review.
-Example: "Please review the file src/main.py"
+Example: "Please review the file test_fixer.py"
 """,
         console
     )
 
-    async with ClaudeSDKClient(options=options) as client:
-        
+    # Create service if not provided (dependency injection)
+    if claude_service is None:
+        claude_service = ClaudeServiceImpl(options=options)
+
+    async with claude_service as service:
+
         # If file argument is provided, automatically review it
         if args.file:
             print_rich_message(
@@ -355,12 +369,12 @@ Example: "Please review the file src/main.py"
                 f"Automatically reviewing file: {args.file}",
                 console
             )
-            
-            await client.query(f"Please perform a comprehensive code review of the file: {args.file}")
-            
-            async for message in client.receive_response():
+
+            await service.query(f"Please perform a comprehensive code review of the file: {args.file}")
+
+            async for message in service.receive_response():
                 parse_and_print_message(message, console, print_stats=(args.stats.lower() == "true"))
-            
+
             # Exit after reviewing the file
             return
 
@@ -370,9 +384,9 @@ Example: "Please review the file src/main.py"
             if input_prompt == "exit":
                 break
 
-            await client.query(input_prompt)
+            await service.query(input_prompt)
 
-            async for message in client.receive_response():
+            async for message in service.receive_response():
                 # Uncomment to print raw messages for debugging
                 # print(message)
                 parse_and_print_message(message, console)
