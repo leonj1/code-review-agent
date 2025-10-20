@@ -79,6 +79,96 @@ pip install -r requirements.txt
 pip install -r requirements-test.txt
 ```
 
+## Running from Any Directory
+
+There are several ways to run these scripts from any location on your system:
+
+### Option 1: Using Full Paths (No Setup Required)
+
+```bash
+# Code review from anywhere
+/path/to/code-review-agent/venv/bin/python /path/to/code-review-agent/code_review_agent.py --file myfile.py
+
+# Test fixer from anywhere
+/path/to/code-review-agent/venv/bin/python /path/to/code-review-agent/test_fixer.py
+```
+
+### Option 2: Add to PATH (Recommended)
+
+Add the project directory to your PATH in `~/.bashrc` or `~/.zshrc`:
+
+```bash
+# Add these lines to ~/.bashrc or ~/.zshrc
+export CODE_REVIEW_AGENT="/path/to/code-review-agent"
+export PATH="$PATH:$CODE_REVIEW_AGENT"
+export PYTHONPATH="$PYTHONPATH:$CODE_REVIEW_AGENT"
+
+# Create wrapper scripts in the project directory
+# Then you can run: code-review --file myfile.py
+```
+
+### Option 3: Create Shell Aliases
+
+Add to `~/.bashrc` or `~/.zshrc`:
+
+```bash
+# Add these aliases
+alias code-review='cd /path/to/code-review-agent && venv/bin/python code_review_agent.py'
+alias test-fixer='cd /path/to/code-review-agent && venv/bin/python test_fixer.py'
+
+# Usage:
+# code-review --file ~/projects/myapp/src/main.py
+# test-fixer ~/projects/myapp/tests/
+```
+
+### Option 4: Create Wrapper Scripts in ~/bin
+
+Create executable wrapper scripts that can be called from anywhere:
+
+```bash
+# Create ~/bin directory if it doesn't exist
+mkdir -p ~/bin
+
+# Create ~/bin/code-review
+cat > ~/bin/code-review << 'EOF'
+#!/bin/bash
+SCRIPT_DIR="/path/to/code-review-agent"
+cd "$SCRIPT_DIR" && venv/bin/python code_review_agent.py "$@"
+EOF
+
+# Create ~/bin/test-fixer
+cat > ~/bin/test-fixer << 'EOF'
+#!/bin/bash
+SCRIPT_DIR="/path/to/code-review-agent"
+cd "$SCRIPT_DIR" && venv/bin/python test_fixer.py "$@"
+EOF
+
+# Make scripts executable
+chmod +x ~/bin/code-review
+chmod +x ~/bin/test-fixer
+
+# Add ~/bin to PATH if not already (in ~/.bashrc or ~/.zshrc)
+export PATH="$HOME/bin:$PATH"
+
+# Now you can run from anywhere:
+# code-review --file ~/projects/myapp/main.py
+# test-fixer ~/projects/myapp/tests/
+```
+
+### Option 5: Using Make from Any Directory
+
+```bash
+# Run make targets from anywhere
+make -C /path/to/code-review-agent test
+make -C /path/to/code-review-agent run-review-file FILE=/absolute/path/to/file.py
+make -C /path/to/code-review-agent run-fixer-path PATH=/absolute/path/to/tests/
+
+# Create a shell alias for convenience
+alias code-review-make='make -C /path/to/code-review-agent'
+
+# Then use: code-review-make test
+```
+
 ## Quick Start with Make
 
 ```bash
