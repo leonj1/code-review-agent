@@ -21,6 +21,16 @@ A sophisticated AI-powered code review system using Claude with specialized sub-
 - **Intelligent stopping conditions** to prevent infinite loops
 - **Service pattern architecture** for testability
 
+### Refactoring Agent (refactoring_agent.py)
+- **Automatically refactors Python classes** by extracting functions into service classes
+- **Identifies primary business logic** function in each class
+- **Validation hooks** ensure:
+  - Service classes are created properly
+  - No environment variable access in services
+  - External clients use interfaces, not concrete implementations
+- **Intelligent retry mechanism** learns from past failures
+- **Iterative refactoring** until all functions are properly extracted
+
 ## Architecture
 
 ### Service Pattern for Testability
@@ -223,6 +233,37 @@ python src/test_fixer.py --model opus        # Use different model
 venv/bin/python src/test_fixer.py
 ```
 
+### Refactoring Agent
+
+```bash
+# Refactor a Python class file
+python src/refactoring_agent.py path/to/file.py
+
+# With options
+python src/refactoring_agent.py file.py --model opus        # Use Claude Opus
+python src/refactoring_agent.py file.py --max-iterations 30 # Limit iterations
+python src/refactoring_agent.py file.py --verbose           # Verbose output
+python src/refactoring_agent.py file.py --dry-run           # Preview changes
+
+# Example: Refactor the sample file
+python src/refactoring_agent.py examples/sample_class_to_refactor.py
+
+# Or with venv
+venv/bin/python src/refactoring_agent.py file.py
+```
+
+#### How Refactoring Works
+
+1. **Analysis**: The agent analyzes your class to understand its structure
+2. **Primary Function**: Identifies the main business logic function (not constructor)
+3. **Extraction**: Iteratively extracts other functions into service classes
+4. **Validation**: Each extraction is validated with hooks:
+   - Service class creation check
+   - No environment variables in services
+   - External clients use interfaces
+5. **Retry Logic**: Failed extractions are retried with knowledge of past failures
+6. **Completion**: Continues until all functions are properly refactored
+
 ### Test Fixer: Agent-Driven Stopping
 
 The test fixer uses an **intelligent, agent-driven approach** instead of arbitrary limits.
@@ -332,24 +373,28 @@ This ensures tests run in a clean, reproducible environment with all dependencie
 
 ```
 code-review-agent/
-├── src/                       # Source code
+├── src/                           # Source code
 │   ├── __init__.py
-│   ├── code_review_agent.py   # Code review orchestrator
-│   ├── test_fixer.py          # Automatic test fixer
-│   ├── claude_service.py      # Service interface & implementations
-│   └── cli_tools.py           # Rich console utilities
-├── tests/                     # Test files
+│   ├── code_review_agent.py      # Code review orchestrator
+│   ├── test_fixer.py             # Automatic test fixer
+│   ├── refactoring_agent.py      # Automatic code refactoring
+│   ├── claude_service.py         # Service interface & implementations
+│   └── cli_tools.py              # Rich console utilities
+├── tests/                         # Test files
 │   ├── __init__.py
-│   ├── test_main.py           # Unit tests for code_review_agent
-│   └── test_test_fixer.py     # Unit tests for test_fixer
-├── requirements.txt           # Production dependencies
-├── requirements-test.txt      # Test dependencies
-├── projects.db                # Project tracking database
-├── Makefile                   # Build automation
-├── Dockerfile.test            # Docker image for running tests
-├── .dockerignore              # Docker ignore patterns
-├── .gitignore                 # Git ignore patterns
-└── README.md                  # This file
+│   ├── test_main.py              # Unit tests for code_review_agent
+│   ├── test_test_fixer.py        # Unit tests for test_fixer
+│   └── test_refactoring_agent.py # Unit tests for refactoring_agent
+├── examples/                      # Example files
+│   └── sample_class_to_refactor.py # Sample for refactoring demo
+├── requirements.txt               # Production dependencies
+├── requirements-test.txt          # Test dependencies
+├── projects.db                    # Project tracking database
+├── Makefile                       # Build automation
+├── Dockerfile.test                # Docker image for running tests
+├── .dockerignore                  # Docker ignore patterns
+├── .gitignore                     # Git ignore patterns
+└── README.md                      # This file
 ```
 
 ## Makefile Reference
