@@ -170,7 +170,7 @@ class RefactoringAgent:
                 )
 
                 for item in node.body:
-                    if isinstance(item, ast.FunctionDef):
+                    if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
                         func_info = FunctionInfo(
                             name=item.name,
                             lineno=item.lineno,
@@ -190,7 +190,7 @@ class RefactoringAgent:
 
         return classes
 
-    def _check_env_access(self, func_node: ast.FunctionDef) -> bool:
+    def _check_env_access(self, func_node) -> bool:
         """Check if a function accesses environment variables."""
         for node in ast.walk(func_node):
             # Check for os.environ access
@@ -215,7 +215,7 @@ class RefactoringAgent:
 
         return False
 
-    def _find_external_calls(self, func_node: ast.FunctionDef) -> List[str]:
+    def _find_external_calls(self, func_node) -> List[str]:
         """Find external API/HTTP calls in a function."""
         external_calls = []
 
@@ -481,7 +481,7 @@ class RefactoringAgent:
             for class_node in classes:
                 if "Service" not in class_node.name:  # Skip service classes
                     for item in class_node.body:
-                        if isinstance(item, ast.FunctionDef) and item.name == func_name:
+                        if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)) and item.name == func_name:
                             # Check if it's just a delegation call
                             if len(item.body) == 1 and isinstance(item.body[0], ast.Return):
                                 return True  # It's a delegation, that's OK
@@ -497,7 +497,7 @@ class RefactoringAgent:
             for node in ast.walk(tree):
                 if isinstance(node, ast.ClassDef) and node.name == service_class_name:
                     for item in node.body:
-                        if isinstance(item, ast.FunctionDef):
+                        if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
                             if self._check_env_access(item):
                                 return False
         except:
@@ -512,7 +512,7 @@ class RefactoringAgent:
                 if isinstance(node, ast.ClassDef) and node.name == service_class_name:
                     # Check constructor for concrete HTTP client instantiation
                     for item in node.body:
-                        if isinstance(item, ast.FunctionDef) and item.name == "__init__":
+                        if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)) and item.name == "__init__":
                             for stmt in ast.walk(item):
                                 # Check for assignments to self.client or similar
                                 if isinstance(stmt, ast.Assign):
