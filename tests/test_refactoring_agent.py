@@ -573,7 +573,7 @@ class MyClass:
         async with fake_service as service:
             agent.claude_service = service
             with patch.object(agent, '_extract_function_to_service', return_value=True) as mock_extract:
-                success = await agent._refactor_class(class_info)
+                await agent._refactor_class(class_info)
                 # Should only try to extract 'helper' (not constructor or primary)
                 assert mock_extract.called
                 extracted_func = mock_extract.call_args[0][1]
