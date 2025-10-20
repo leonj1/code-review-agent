@@ -3,32 +3,35 @@
 # Default target
 .DEFAULT_GOAL := help
 
+# Set PYTHONPATH to include project root
+export PYTHONPATH := $(shell pwd):$(PYTHONPATH)
+
 help: ## Show this help message
 	@echo "Available targets:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 test: ## Run all tests
-	venv/bin/pytest -v
+	venv/bin/pytest tests/ -v
 
 test-verbose: ## Run tests with verbose output and show print statements
-	venv/bin/pytest -vv -s
+	venv/bin/pytest tests/ -vv -s
 
 test-coverage: ## Run tests with coverage report
-	venv/bin/pytest --cov=. --cov-report=html --cov-report=term-missing
+	venv/bin/pytest tests/ --cov=src --cov-report=html --cov-report=term-missing
 	@echo ""
 	@echo "Coverage report generated in htmlcov/index.html"
 
-test-specific: ## Run specific test file (usage: make test-specific FILE=test_main.py)
+test-specific: ## Run specific test file (usage: make test-specific FILE=tests/test_main.py)
 	venv/bin/pytest -v $(FILE)
 
 test-main: ## Run tests for code_review_agent only
-	venv/bin/pytest -v test_main.py
+	venv/bin/pytest -v tests/test_main.py
 
 test-fixer: ## Run tests for test_fixer only
-	venv/bin/pytest -v test_test_fixer.py
+	venv/bin/pytest -v tests/test_test_fixer.py
 
 test-watch: ## Run tests in watch mode (requires pytest-watch)
-	venv/bin/ptw -- -v
+	venv/bin/ptw tests/ -- -v
 
 clean: ## Clean up generated files (cache, coverage, etc.)
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
@@ -55,16 +58,16 @@ setup-venv: ## Create virtual environment and install dependencies
 	@echo "Virtual environment created! Activate with: source venv/bin/activate"
 
 run-review: ## Run code review agent in interactive mode
-	venv/bin/python code_review_agent.py --model sonnet
+	venv/bin/python src/code_review_agent.py --model sonnet
 
 run-review-file: ## Review a specific file (usage: make run-review-file FILE=test_fixer.py)
-	venv/bin/python code_review_agent.py --file $(FILE)
+	venv/bin/python src/code_review_agent.py --file $(FILE)
 
 run-fixer: ## Run test fixer on current directory
-	venv/bin/python test_fixer.py
+	venv/bin/python src/test_fixer.py
 
 run-fixer-path: ## Run test fixer on specific path (usage: make run-fixer-path PATH=test_main.py)
-	venv/bin/python test_fixer.py $(PATH)
+	venv/bin/python src/test_fixer.py $(PATH)
 
 format: ## Format code with black (if installed)
 	@which black > /dev/null && black . || echo "black not installed, skipping format"

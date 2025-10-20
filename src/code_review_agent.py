@@ -29,8 +29,8 @@ Usage:
 from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions, AgentDefinition
 from rich import print
 from rich.console import Console
-from cli_tools import print_rich_message, parse_and_print_message, get_user_input
-from claude_service import IClaudeService, ClaudeServiceImpl
+from src.cli_tools import print_rich_message, parse_and_print_message, get_user_input
+from src.claude_service import IClaudeService, ClaudeServiceImpl
 from dotenv import load_dotenv
 from typing import Optional
 import argparse

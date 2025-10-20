@@ -87,10 +87,10 @@ There are several ways to run these scripts from any location on your system:
 
 ```bash
 # Code review from anywhere
-/path/to/code-review-agent/venv/bin/python /path/to/code-review-agent/code_review_agent.py --file myfile.py
+/path/to/code-review-agent/venv/bin/python /path/to/code-review-agent/src/code_review_agent.py --file myfile.py
 
 # Test fixer from anywhere
-/path/to/code-review-agent/venv/bin/python /path/to/code-review-agent/test_fixer.py
+/path/to/code-review-agent/venv/bin/python /path/to/code-review-agent/src/test_fixer.py
 ```
 
 ### Option 2: Add to PATH (Recommended)
@@ -113,8 +113,8 @@ Add to `~/.bashrc` or `~/.zshrc`:
 
 ```bash
 # Add these aliases
-alias code-review='cd /path/to/code-review-agent && venv/bin/python code_review_agent.py'
-alias test-fixer='cd /path/to/code-review-agent && venv/bin/python test_fixer.py'
+alias code-review='cd /path/to/code-review-agent && venv/bin/python src/code_review_agent.py'
+alias test-fixer='cd /path/to/code-review-agent && venv/bin/python src/test_fixer.py'
 
 # Usage:
 # code-review --file ~/projects/myapp/src/main.py
@@ -133,14 +133,14 @@ mkdir -p ~/bin
 cat > ~/bin/code-review << 'EOF'
 #!/bin/bash
 SCRIPT_DIR="/path/to/code-review-agent"
-cd "$SCRIPT_DIR" && venv/bin/python code_review_agent.py "$@"
+cd "$SCRIPT_DIR" && venv/bin/python src/code_review_agent.py "$@"
 EOF
 
 # Create ~/bin/test-fixer
 cat > ~/bin/test-fixer << 'EOF'
 #!/bin/bash
 SCRIPT_DIR="/path/to/code-review-agent"
-cd "$SCRIPT_DIR" && venv/bin/python test_fixer.py "$@"
+cd "$SCRIPT_DIR" && venv/bin/python src/test_fixer.py "$@"
 EOF
 
 # Make scripts executable
@@ -193,28 +193,34 @@ make run-fixer
 ### Code Review Agent
 
 ```bash
-# Using Make
+# Using Make (recommended)
 make run-review                              # Interactive mode
 make run-review-file FILE=path/to/file.py   # Review specific file
 
-# Using Python directly
-python code_review_agent.py --model sonnet
-python code_review_agent.py --file path/to/file.py
-python code_review_agent.py --file test_fixer.py --stats true
+# Using Python directly from project root
+python src/code_review_agent.py --model sonnet
+python src/code_review_agent.py --file path/to/file.py
+python src/code_review_agent.py --file test_fixer.py --stats true
+
+# Or with venv
+venv/bin/python src/code_review_agent.py --model sonnet
 ```
 
 ### Test Fixer Agent
 
 ```bash
-# Using Make
+# Using Make (recommended)
 make run-fixer                          # Fix tests in current directory
 make run-fixer-path PATH=test_main.py  # Fix specific test file
 
-# Using Python directly
-python test_fixer.py                    # Fix tests in current directory
-python test_fixer.py test_main.py      # Fix specific test file
-python test_fixer.py --max-iterations 10  # Custom safety limit
-python test_fixer.py --model opus        # Use different model
+# Using Python directly from project root
+python src/test_fixer.py                    # Fix tests in current directory
+python src/test_fixer.py test_main.py      # Fix specific test file
+python src/test_fixer.py --max-iterations 10  # Custom safety limit
+python src/test_fixer.py --model opus        # Use different model
+
+# Or with venv
+venv/bin/python src/test_fixer.py
 ```
 
 ### Test Fixer: Agent-Driven Stopping
@@ -326,17 +332,23 @@ This ensures tests run in a clean, reproducible environment with all dependencie
 
 ```
 code-review-agent/
-├── code_review_agent.py       # Code review orchestrator
-├── test_fixer.py              # Automatic test fixer
-├── claude_service.py          # Service interface & implementations
-├── test_main.py               # Unit tests for code_review_agent
-├── test_test_fixer.py         # Unit tests for test_fixer
+├── src/                       # Source code
+│   ├── __init__.py
+│   ├── code_review_agent.py   # Code review orchestrator
+│   ├── test_fixer.py          # Automatic test fixer
+│   ├── claude_service.py      # Service interface & implementations
+│   └── cli_tools.py           # Rich console utilities
+├── tests/                     # Test files
+│   ├── __init__.py
+│   ├── test_main.py           # Unit tests for code_review_agent
+│   └── test_test_fixer.py     # Unit tests for test_fixer
 ├── requirements.txt           # Production dependencies
 ├── requirements-test.txt      # Test dependencies
 ├── projects.db                # Project tracking database
 ├── Makefile                   # Build automation
 ├── Dockerfile.test            # Docker image for running tests
 ├── .dockerignore              # Docker ignore patterns
+├── .gitignore                 # Git ignore patterns
 └── README.md                  # This file
 ```
 
@@ -350,7 +362,7 @@ The Makefile provides convenient shortcuts for common tasks:
 - `make test-coverage` - Generate coverage report
 - `make test-main` - Test code_review_agent only
 - `make test-fixer` - Test test_fixer only
-- `make test-specific FILE=<file>` - Test specific file
+- `make test-specific FILE=tests/<file>` - Test specific file
 
 ### Installation
 - `make install` - Install production dependencies
@@ -382,8 +394,8 @@ The Makefile provides convenient shortcuts for common tasks:
 
 ```python
 import asyncio
-from claude_service import FakeClaudeService
-from code_review_agent import main
+from src.claude_service import FakeClaudeService
+from src.code_review_agent import main
 
 async def test_code_review():
     # Create fake service with mock responses

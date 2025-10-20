@@ -36,7 +36,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.panel import Panel
 from rich.markdown import Markdown
 from claude_agent_sdk import ClaudeAgentOptions, AgentDefinition
-from claude_service import IClaudeService, ClaudeServiceImpl
+from src.claude_service import IClaudeService, ClaudeServiceImpl
 from dotenv import load_dotenv
 
 load_dotenv()

@@ -8,8 +8,8 @@ or running real pytest commands. Uses FakeClaudeService for mocking.
 import pytest
 import asyncio
 from unittest.mock import Mock, patch, MagicMock
-from test_fixer import TestFixer, TestResult, FixAttempt
-from claude_service import FakeClaudeService
+from src.test_fixer import TestFixer, TestResult, FixAttempt
+from src.claude_service import FakeClaudeService
 
 
 class TestTestResult:

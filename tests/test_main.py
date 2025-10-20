@@ -8,8 +8,8 @@ actual API calls to Claude.
 import pytest
 import asyncio
 from unittest.mock import Mock, patch, MagicMock
-from code_review_agent import main
-from claude_service import FakeClaudeService
+from src.code_review_agent import main
+from src.claude_service import FakeClaudeService
 
 
 class TestMainFunction:
@@ -27,7 +27,7 @@ class TestMainFunction:
 
         # Mock command line arguments
         with patch('sys.argv', ['code_review_agent.py', '--file', 'test_file.py', '--stats', 'false']):
-            with patch('code_review_agent.parse_and_print_message'):
+            with patch('src.code_review_agent.parse_and_print_message'):
                 # Act
                 await main(claude_service=fake_service)
 
