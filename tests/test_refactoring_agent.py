@@ -347,16 +347,9 @@ class DataService:
             body="def process_data(): pass"
         )
 
-        class_info = ClassInfo(
-            name="DataProcessor",
-            lineno=10,
-            functions=[func]
-        )
-
         agent.current_source = "class DataProcessor: pass"
 
         prompt = agent._build_refactoring_prompt(
-            class_info,
             func,
             "ProcessDataService",
             []
