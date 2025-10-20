@@ -113,21 +113,42 @@ class RefactoringAgent:
             self.console.print("[yellow]No classes found in the file.[/yellow]")
             return True
 
-        # Process each class
-        for class_info in classes:
-            success = await self._refactor_class(class_info)
-            if not success:
-                self.console.print(f"[red]Failed to refactor class {class_info.name}[/red]")
-                return False
+        # Create Claude service if not provided (for testing)
+        if self.claude_service is None:
+            options = ClaudeAgentOptions(
+                model=f"claude-3-5-{self.model}-latest",
+                permission_mode="acceptEdits",
+                name="RefactoringAgent",
+                allowed_tools=["Read", "Write", "Edit", "Grep", "Glob"],
+                system_prompt="""You are an expert at refactoring Python code.
+                You extract functions into service classes following SOLID principles.
+                You ensure all functionality is preserved while improving code structure."""
+            )
+            self.claude_service = ClaudeServiceImpl(options=options)
 
-        # Write the refactored code back
         try:
-            with open(file_path, 'w') as f:
-                f.write(self.current_source)
-            self.console.print("[green]Refactoring completed successfully![/green]")
-            return True
+            async with self.claude_service as service:
+                self.claude_service = service
+
+                # Process each class
+                for class_info in classes:
+                    success = await self._refactor_class(class_info)
+                    if not success:
+                        self.console.print(f"[red]Failed to refactor class {class_info.name}[/red]")
+                        return False
+
+                # Write the refactored code back
+                try:
+                    with open(file_path, 'w') as f:
+                        f.write(self.current_source)
+                    self.console.print("[green]Refactoring completed successfully![/green]")
+                    return True
+                except Exception as e:
+                    self.console.print(f"[red]Error writing refactored file: {e}[/red]")
+                    return False
+
         except Exception as e:
-            self.console.print(f"[red]Error writing refactored file: {e}[/red]")
+            self.console.print(f"[red]Error during refactoring: {e}[/red]")
             return False
 
     def _analyze_source_structure(self) -> List[ClassInfo]:
@@ -223,15 +244,6 @@ class RefactoringAgent:
 
     async def _identify_primary_function(self, class_info: ClassInfo) -> str:
         """Use Claude to identify the primary function of a class."""
-        if self.claude_service is None:
-            options = ClaudeAgentOptions(
-                model=f"claude-3-5-{self.model}-latest",
-                permission_mode="acceptEdits",
-                name="RefactoringAgent",
-                tools=["Read", "Write", "Edit", "Grep", "Glob"]
-            )
-            self.claude_service = ClaudeServiceImpl(options=options)
-
         prompt = f"""
         Analyze this class and identify which function is most likely the PRIMARY function
         (the main business logic function, not constructor or utility methods).
@@ -249,12 +261,11 @@ class RefactoringAgent:
         If there's no clear primary function, return the most complex non-constructor function.
         """
 
-        async with self.claude_service as service:
-            await service.query(prompt)
-            primary_function = ""
-            async for message in service.receive_response():
-                if message.get("type") == "text":
-                    primary_function = message.get("content", "").strip()
+        await self.claude_service.query(prompt)
+        primary_function = ""
+        async for message in self.claude_service.receive_response():
+            if hasattr(message, 'content'):
+                primary_function = str(message.content).strip()
 
         return primary_function
 
@@ -403,27 +414,18 @@ class RefactoringAgent:
 
     async def _execute_refactoring(self, prompt: str) -> Optional[str]:
         """Execute the refactoring using Claude."""
-        if self.claude_service is None:
-            options = ClaudeAgentOptions(
-                model=f"claude-3-5-{self.model}-latest",
-                permission_mode="acceptEdits",
-                name="RefactoringAgent"
-            )
-            self.claude_service = ClaudeServiceImpl(options=options)
-
         refactored_code = ""
-        async with self.claude_service as service:
-            await service.query(prompt)
-            async for message in service.receive_response():
-                if message.get("type") == "text":
-                    content = message.get("content", "")
-                    # Extract code from markdown if present
-                    if "```python" in content:
-                        start = content.find("```python") + 9
-                        end = content.find("```", start)
-                        refactored_code = content[start:end].strip()
-                    else:
-                        refactored_code = content.strip()
+        await self.claude_service.query(prompt)
+        async for message in self.claude_service.receive_response():
+            if hasattr(message, 'content'):
+                content = str(message.content)
+                # Extract code from markdown if present
+                if "```python" in content:
+                    start = content.find("```python") + 9
+                    end = content.find("```", start)
+                    refactored_code = content[start:end].strip()
+                else:
+                    refactored_code = content.strip()
 
         return refactored_code if refactored_code else None
 
@@ -585,8 +587,13 @@ class RefactoringAgent:
         self.console.print(table)
 
 
-async def main():
-    """Main entry point for the refactoring agent."""
+async def main(claude_service: Optional[IClaudeService] = None):
+    """
+    Main entry point for the refactoring agent.
+
+    Args:
+        claude_service: Optional Claude service for dependency injection (used in testing)
+    """
     parser = argparse.ArgumentParser(
         description="Refactor Python source files by extracting functions into service classes"
     )
@@ -630,6 +637,7 @@ async def main():
 
     # Create the agent
     agent = RefactoringAgent(
+        claude_service=claude_service,
         model=args.model,
         max_iterations=args.max_iterations,
         verbose=args.verbose

@@ -405,10 +405,12 @@ class OriginalClass:
     @pytest.mark.asyncio
     async def test_identify_primary_function(self):
         """Test identifying the primary function of a class."""
+        # Create a mock response object with content attribute
+        mock_response = MagicMock()
+        mock_response.content = "process_data"
+
         fake_service = FakeClaudeService(
-            mock_responses=[
-                {"type": "text", "content": "process_data"}
-            ]
+            mock_responses=[mock_response]
         )
         agent = RefactoringAgent(claude_service=fake_service)
 
@@ -423,8 +425,12 @@ class OriginalClass:
         )
 
         agent.current_source = "class DataProcessor: pass"
-        primary = await agent._identify_primary_function(class_info)
-        assert primary == "process_data"
+
+        # Need to use the service within its context manager
+        async with fake_service as service:
+            agent.claude_service = service
+            primary = await agent._identify_primary_function(class_info)
+            assert primary == "process_data"
 
     @pytest.mark.asyncio
     async def test_execute_refactoring(self):
@@ -439,15 +445,21 @@ class OriginalClass:
 class DataProcessor:
     def __init__(self):
         self.service = ProcessDataService()"""
+
+        # Create a mock response object with content attribute
+        mock_response = MagicMock()
+        mock_response.content = f"```python\n{refactored_code}\n```"
+
         fake_service = FakeClaudeService(
-            mock_responses=[
-                {"type": "text", "content": f"```python\n{refactored_code}\n```"}
-            ]
+            mock_responses=[mock_response]
         )
         agent = RefactoringAgent(claude_service=fake_service)
 
-        result = await agent._execute_refactoring("Test prompt")
-        assert result == refactored_code
+        # Need to use the service within its context manager
+        async with fake_service as service:
+            agent.claude_service = service
+            result = await agent._execute_refactoring("Test prompt")
+            assert result == refactored_code
 
     @pytest.mark.asyncio
     async def test_refactor_file_not_found(self):
@@ -488,10 +500,12 @@ class Calculator:
     def calculate(self, x, y):
         return self.calculate_service.execute(x, y)
 """
+        # Create a mock response object with content attribute
+        mock_response = MagicMock()
+        mock_response.content = f"```python\n{refactored_code}\n```"
+
         fake_service = FakeClaudeService(
-            mock_responses=[
-                {"type": "text", "content": f"```python\n{refactored_code}\n```"}
-            ]
+            mock_responses=[mock_response]
         )
         agent = RefactoringAgent(claude_service=fake_service)
         agent.original_source = "class Calculator: pass"
@@ -514,18 +528,23 @@ class Calculator:
             body=""
         )
 
-        success = await agent._extract_function_to_service(class_info, func)
-        assert success is True
-        assert len(agent.attempts) == 1
-        assert agent.attempts[0].success is True
+        # Need to use the service within its context manager
+        async with fake_service as service:
+            agent.claude_service = service
+            success = await agent._extract_function_to_service(class_info, func)
+            assert success is True
+            assert len(agent.attempts) == 1
+            assert agent.attempts[0].success is True
 
     @pytest.mark.asyncio
     async def test_refactor_class_with_primary_function(self):
         """Test refactoring a class with a primary function identified."""
+        # Create a mock response object with content attribute
+        mock_response = MagicMock()
+        mock_response.content = "main_logic"
+
         fake_service = FakeClaudeService(
-            mock_responses=[
-                {"type": "text", "content": "main_logic"}  # Primary function identification
-            ]
+            mock_responses=[mock_response]  # Primary function identification
         )
         agent = RefactoringAgent(claude_service=fake_service, max_iterations=1)
 
@@ -551,12 +570,15 @@ class MyClass:
         return "help"
 """
 
-        with patch.object(agent, '_extract_function_to_service', return_value=True) as mock_extract:
-            success = await agent._refactor_class(class_info)
-            # Should only try to extract 'helper' (not constructor or primary)
-            assert mock_extract.called
-            extracted_func = mock_extract.call_args[0][1]
-            assert extracted_func.name == "helper"
+        # Need to use the service within its context manager
+        async with fake_service as service:
+            agent.claude_service = service
+            with patch.object(agent, '_extract_function_to_service', return_value=True) as mock_extract:
+                success = await agent._refactor_class(class_info)
+                # Should only try to extract 'helper' (not constructor or primary)
+                assert mock_extract.called
+                extracted_func = mock_extract.call_args[0][1]
+                assert extracted_func.name == "helper"
 
 
 class TestRefactoringAttempt:
@@ -606,11 +628,14 @@ class TestMainFunction:
             temp_file = f.name
 
         try:
+            # Create a fake service for testing
+            fake_service = FakeClaudeService(mock_responses=[])
+
             with patch('sys.argv', ['refactoring_agent.py', temp_file]):
                 with patch('refactoring_agent.RefactoringAgent.refactor_file', return_value=True) as mock_refactor:
                     with patch('sys.exit') as mock_exit:
                         from refactoring_agent import main
-                        await main()
+                        await main(claude_service=fake_service)
                         mock_exit.assert_called_once_with(0)
         finally:
             Path(temp_file).unlink()
