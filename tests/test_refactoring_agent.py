@@ -624,7 +624,7 @@ class TestMainFunction:
             fake_service = FakeClaudeService(mock_responses=[])
 
             with patch('sys.argv', ['refactoring_agent.py', temp_file]):
-                with patch('refactoring_agent.RefactoringAgent.refactor_file', return_value=True) as mock_refactor:
+                with patch('refactoring_agent.RefactoringAgent.refactor_file', return_value=True):
                     with patch('sys.exit') as mock_exit:
                         from refactoring_agent import main
                         await main(claude_service=fake_service)
