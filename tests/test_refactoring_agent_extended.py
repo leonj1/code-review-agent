@@ -490,7 +490,6 @@ async def fetch():
             body="@staticmethod\ndef calculate_tax(amount): return amount * 0.1"
         )
 
-        class_info = ClassInfo(name="TaxCalculator", lineno=1, functions=[func])
         agent.current_source = "class TaxCalculator: pass"
 
         prompt = agent._build_refactoring_prompt(
