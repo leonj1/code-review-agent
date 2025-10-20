@@ -77,12 +77,14 @@ class RefactoringAgent:
         claude_service: Optional[IClaudeService] = None,
         model: str = "sonnet",
         max_iterations: int = 50,
-        verbose: bool = False
+        verbose: bool = False,
+        dry_run: bool = False
     ):
         self.claude_service = claude_service
         self.model = model
         self.max_iterations = max_iterations
         self.verbose = verbose
+        self.dry_run = dry_run
         self.console = Console()
         self.attempts: List[RefactoringAttempt] = []
         self.current_source: str = ""
@@ -137,7 +139,10 @@ class RefactoringAgent:
                         self.console.print(f"[red]Failed to refactor class {class_info.name}[/red]")
                         return False
 
-                # Write the refactored code back
+                # Write the refactored code back (unless dry-run)
+                if self.dry_run:
+                    self.console.print("[yellow]Dry run: no changes written to disk.[/yellow]")
+                    return True
                 try:
                     with open(file_path, 'w') as f:
                         f.write(self.current_source)
@@ -642,7 +647,8 @@ async def main(claude_service: Optional[IClaudeService] = None):
         claude_service=claude_service,
         model=args.model,
         max_iterations=args.max_iterations,
-        verbose=args.verbose
+        verbose=args.verbose,
+        dry_run=args.dry_run
     )
 
     # Perform refactoring
