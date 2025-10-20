@@ -351,6 +351,8 @@ class RefactoringAgent:
 
         if validation.passed:
             self._record_attempt(func.name, service_class_name, True, [])
+            # Advance baseline so later failures don't discard prior successes
+            self.original_source = self.current_source
             return True
         else:
             # Revert changes
