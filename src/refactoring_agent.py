@@ -330,7 +330,6 @@ class RefactoringAgent:
 
         # Build the refactoring prompt
         prompt = self._build_refactoring_prompt(
-            class_info,
             func,
             service_class_name,
             failure_history
@@ -367,7 +366,6 @@ class RefactoringAgent:
 
     def _build_refactoring_prompt(
         self,
-        class_info: ClassInfo,
         func: FunctionInfo,
         service_class_name: str,
         failure_history: List[RefactoringAttempt]
