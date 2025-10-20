@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Extended tests for the RefactoringAgent class - covering critical missing scenarios.
 """
