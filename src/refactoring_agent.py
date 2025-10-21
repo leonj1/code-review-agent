@@ -335,11 +335,13 @@ class RefactoringAgent:
         refactored_code = await self._execute_refactoring(prompt)
 
         if not refactored_code:
+            error_msg = "Failed to generate refactored code from Claude response"
+            self.console.print(f"[red]{error_msg}[/red]")
             self._record_attempt(
                 func.name,
                 service_class_name,
                 False,
-                ["Failed to generate refactored code"]
+                [error_msg]
             )
             return False
 
@@ -358,6 +360,16 @@ class RefactoringAgent:
             # Revert changes
             self.current_source = self.original_source
             self._record_attempt(func.name, service_class_name, False, validation.errors)
+
+            # Print validation errors to help debug
+            self.console.print(f"[red]Validation failed for {func.name}:[/red]")
+            for error in validation.errors:
+                self.console.print(f"  [yellow]• {error}[/yellow]")
+            if validation.warnings:
+                self.console.print("[yellow]Warnings:[/yellow]")
+                for warning in validation.warnings:
+                    self.console.print(f"  [dim]• {warning}[/dim]")
+
             return False
 
     def _build_refactoring_prompt(
@@ -417,16 +429,34 @@ class RefactoringAgent:
         """Execute the refactoring using Claude."""
         refactored_code = ""
         await self.claude_service.query(prompt)
+
+        message_count = 0
         async for message in self.claude_service.receive_response():
+            message_count += 1
+            if self.verbose:
+                self.console.print(f"[dim]Received message {message_count} from Claude[/dim]")
+
             if hasattr(message, 'content'):
                 content = str(message.content)
+                if self.verbose:
+                    self.console.print(f"[dim]Content length: {len(content)} characters[/dim]")
+
                 # Extract code from markdown if present
                 if "```python" in content:
                     start = content.find("```python") + 9
                     end = content.find("```", start)
                     refactored_code = content[start:end].strip()
+                    if self.verbose:
+                        self.console.print(f"[dim]Extracted Python code block ({len(refactored_code)} chars)[/dim]")
                 else:
                     refactored_code = content.strip()
+                    if self.verbose:
+                        self.console.print(f"[dim]Using raw content as code[/dim]")
+
+        if not refactored_code and message_count > 0:
+            self.console.print(f"[yellow]Warning: Received {message_count} messages but no code was extracted[/yellow]")
+        elif not refactored_code:
+            self.console.print("[red]Error: No messages received from Claude[/red]")
 
         return refactored_code if refactored_code else None
 
