@@ -328,7 +328,13 @@ class RefactoringAgent:
         func: FunctionInfo
     ) -> bool:
         """Extract a single function into a service class."""
-        service_class_name = f"{func.name.title()}Service"
+        # Convert function name to PascalCase (e.g., _extract_sender_email -> ExtractSenderEmailService)
+        name_parts = func.name.strip('_').split('_')
+        pascal_name = ''.join(word.capitalize() for word in name_parts)
+        service_class_name = f"{pascal_name}Service"
+
+        if self.verbose:
+            self.console.print(f"[dim]Extracting {func.name} into {service_class_name}[/dim]")
 
         # Get previous attempts for context
         failure_history = self._get_failure_history(func.name)
@@ -357,6 +363,9 @@ class RefactoringAgent:
         # Apply the refactored code
         self.current_source = refactored_code
 
+        if self.verbose:
+            self.console.print(f"[dim]Refactored code length: {len(refactored_code)} characters[/dim]")
+
         # Run validation hooks
         validation = self._run_validation_hooks(func, service_class_name)
 
@@ -378,6 +387,28 @@ class RefactoringAgent:
                 self.console.print("[yellow]Warnings:[/yellow]")
                 for warning in validation.warnings:
                     self.console.print(f"  [dim]• {warning}[/dim]")
+
+            # Show what classes were actually found in the refactored code
+            try:
+                tree = ast.parse(refactored_code)
+                class_names = [node.name for node in ast.walk(tree) if isinstance(node, ast.ClassDef)]
+                if class_names:
+                    self.console.print(f"[cyan]Classes found in refactored code: {', '.join(class_names)}[/cyan]")
+                else:
+                    self.console.print(f"[yellow]No classes found in refactored code[/yellow]")
+            except SyntaxError as e:
+                self.console.print(f"[red]Refactored code has syntax error: {e}[/red]")
+
+            # Save failed attempt to file for debugging
+            if self.verbose:
+                attempt_num = len([a for a in self.attempts if a.target_function == func.name and not a.success])
+                debug_file = f"debug_refactor_{func.name}_attempt_{attempt_num}.py"
+                try:
+                    with open(debug_file, 'w') as f:
+                        f.write(refactored_code)
+                    self.console.print(f"[dim]Saved failed attempt to {debug_file}[/dim]")
+                except Exception as e:
+                    self.console.print(f"[dim]Could not save debug file: {e}[/dim]")
 
             return False
 
