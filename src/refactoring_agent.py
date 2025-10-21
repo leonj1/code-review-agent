@@ -27,6 +27,17 @@ from claude_service import IClaudeService, ClaudeServiceImpl
 from cli_tools import print_rich_message, parse_and_print_message
 
 
+# Default Claude model to use for refactoring
+DEFAULT_MODEL = "claude-sonnet-4-5-20250929"
+
+# Model name mappings (short name -> full model ID)
+MODEL_MAPPINGS = {
+    "sonnet": "claude-sonnet-4-5-20250929",
+    "opus": "claude-opus-4-20250514",
+    "haiku": "claude-3-5-haiku-20241022"
+}
+
+
 @dataclass
 class FunctionInfo:
     """Information about a function in the source file."""
@@ -75,7 +86,7 @@ class RefactoringAgent:
     def __init__(
         self,
         claude_service: Optional[IClaudeService] = None,
-        model: str = "sonnet",
+        model: str = DEFAULT_MODEL,
         max_iterations: int = 50,
         verbose: bool = False,
         dry_run: bool = False
@@ -120,7 +131,7 @@ class RefactoringAgent:
         # Create Claude service if not provided (for testing)
         if self.claude_service is None:
             options = ClaudeAgentOptions(
-                model=f"claude-3-5-{self.model}-latest",
+                model=self.model,
                 permission_mode="acceptEdits",
                 allowed_tools=["Read", "Write", "Edit", "Grep", "Glob"]
             )
@@ -676,8 +687,7 @@ async def main(claude_service: Optional[IClaudeService] = None):
         "--model",
         "-m",
         default="sonnet",
-        choices=["sonnet", "opus", "haiku"],
-        help="Claude model to use (default: sonnet)"
+        help="Claude model to use. Can be a short name (sonnet, opus, haiku) or full model ID (default: sonnet = claude-sonnet-4-5-20250929)"
     )
     parser.add_argument(
         "--max-iterations",
@@ -706,10 +716,17 @@ async def main(claude_service: Optional[IClaudeService] = None):
         print(f"Error: File not found: {args.file}")
         sys.exit(1)
 
+    # Resolve model name to full model ID
+    model = MODEL_MAPPINGS.get(args.model, args.model)
+    if args.model in MODEL_MAPPINGS:
+        print(f"Using model: {args.model} -> {model}")
+    else:
+        print(f"Using model: {model}")
+
     # Create the agent
     agent = RefactoringAgent(
         claude_service=claude_service,
-        model=args.model,
+        model=model,
         max_iterations=args.max_iterations,
         verbose=args.verbose,
         dry_run=args.dry_run
