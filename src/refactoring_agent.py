@@ -113,7 +113,9 @@ class RefactoringAgent:
         classes = self._analyze_source_structure()
         if not classes:
             self.console.print("[yellow]No classes found in the file.[/yellow]")
-            return True
+            self.console.print("[dim]The refactoring agent requires at least one class definition.[/dim]")
+            self.console.print("[dim]If the file has a syntax error, it was reported above.[/dim]")
+            return False
 
         # Create Claude service if not provided (for testing)
         if self.claude_service is None:
@@ -159,7 +161,14 @@ class RefactoringAgent:
         try:
             tree = ast.parse(self.current_source)
         except SyntaxError as e:
-            self.console.print(f"[red]Syntax error in source file: {e}[/red]")
+            self.console.print(f"[red]Syntax error in source file:[/red]")
+            self.console.print(f"[red]  File: {self.file_path}[/red]")
+            self.console.print(f"[red]  Line {e.lineno}: {e.msg}[/red]")
+            if e.text:
+                self.console.print(f"[yellow]  {e.text.strip()}[/yellow]")
+                if e.offset:
+                    self.console.print(f"[yellow]  {' ' * (e.offset - 1)}^[/yellow]")
+            self.console.print(f"[red]Please fix the syntax error before running the refactoring agent.[/red]")
             return []
 
         for node in ast.walk(tree):
