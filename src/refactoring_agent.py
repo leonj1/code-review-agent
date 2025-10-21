@@ -120,11 +120,7 @@ class RefactoringAgent:
             options = ClaudeAgentOptions(
                 model=f"claude-3-5-{self.model}-latest",
                 permission_mode="acceptEdits",
-                name="RefactoringAgent",
-                allowed_tools=["Read", "Write", "Edit", "Grep", "Glob"],
-                system_prompt="""You are an expert at refactoring Python code.
-                You extract functions into service classes following SOLID principles.
-                You ensure all functionality is preserved while improving code structure."""
+                allowed_tools=["Read", "Write", "Edit", "Grep", "Glob"]
             )
             self.claude_service = ClaudeServiceImpl(options=options)
 
