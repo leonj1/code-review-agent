@@ -112,19 +112,23 @@ def run_tests() -> TestRunResult:
         )
 
         # Parse pytest output to extract test counts
+        # IMPORTANT: Combine stdout and stderr since test frameworks may output to either
         stdout = result.stdout
+        stderr = result.stderr
+        combined_output = stdout + "\n" + stderr
+
         total_tests = 0
         passed_tests = 0
         failed_tests = 0
 
         # Look for pytest summary line like: "89 passed in 2.45s"
-        summary_match = re.search(r'(\d+)\s+passed', stdout)
+        summary_match = re.search(r'(\d+)\s+passed', combined_output)
         if summary_match:
             passed_tests = int(summary_match.group(1))
             total_tests = passed_tests
 
         # Look for failures
-        failure_match = re.search(r'(\d+)\s+failed', stdout)
+        failure_match = re.search(r'(\d+)\s+failed', combined_output)
         if failure_match:
             failed_tests = int(failure_match.group(1))
             total_tests += failed_tests
@@ -134,7 +138,7 @@ def run_tests() -> TestRunResult:
             total_tests=total_tests,
             passed_tests=passed_tests,
             failed_tests=failed_tests,
-            stdout=stdout,
+            stdout=combined_output,  # Store combined output
             stderr=result.stderr
         )
 
@@ -161,6 +165,164 @@ def run_tests() -> TestRunResult:
 
 
 # ============================================================================
+# Agent Tools
+# ============================================================================
+
+def is_python_test_file(file_path: str) -> bool:
+    """
+    Check if a file is a Python test file.
+
+    **When to use this tool:**
+    - To determine if you should use parse_unittest_failures
+    - Before parsing test output to ensure it's Python-related
+    - To validate file types in test fixing workflows
+
+    Args:
+        file_path: Path to the file to check
+
+    Returns:
+        True if the file is a Python test file (.py extension and contains 'test' in name)
+        False otherwise
+
+    Example:
+        >>> is_python_test_file("tests/test_example.py")
+        True
+        >>> is_python_test_file("src/main.js")
+        False
+    """
+    path = Path(file_path)
+    return path.suffix == '.py' and 'test' in path.name.lower()
+
+
+def parse_unittest_failures(test_output: str) -> List[FailingTest]:
+    """
+    Parse Python unittest test output and extract failing tests with their errors.
+
+    **When to use this tool:**
+    - When working with Python test files (*.py)
+    - After running 'make test' or 'python -m unittest' or 'pytest'
+    - To extract structured information about test failures
+    - To identify which tests are failing and why
+
+    **Input format:**
+    Raw output from unittest/pytest containing failure blocks that look like:
+        ======================================================================
+        FAIL: test_name (test_module.TestClass.test_name)
+        Test description
+        ----------------------------------------------------------------------
+        Traceback (most recent call last):
+          File "/path/to/test.py", line X, in test_name
+            self.assertEqual(expected, actual)
+        AssertionError: error message
+
+    Args:
+        test_output: Raw output from unittest/pytest test runner as a string
+
+    Returns:
+        List of FailingTest objects, each containing:
+        - test_file: Path to the test file
+        - test_name: Full qualified test name (module.Class.method)
+        - test_class: Test class name (if applicable)
+        - test_method: Test method name
+        - error_type: Type of error (AssertionError, ValueError, etc.)
+        - error_message: The error message
+        - traceback: Full traceback
+        - line_number: Line number where test failed
+
+    Example:
+        >>> output = run_command('make test')
+        >>> failures = parse_unittest_failures(output)
+        >>> for failure in failures:
+        ...     print(f"{failure.test_name} failed at {failure.test_file}:{failure.line_number}")
+        ...     print(f"Error: {failure.error_message}")
+    """
+    failures = []
+
+    # Split output into individual failure blocks
+    # Pattern: ====== FAIL: ... followed by content until next ====== or end
+    failure_blocks = re.split(r'={70,}\n', test_output)
+
+    for block in failure_blocks:
+        if not block.strip() or not block.startswith('FAIL:'):
+            continue
+
+        # Parse the header line: FAIL: test_method (full.test.path)
+        header_match = re.match(
+            r'FAIL:\s+(\w+)\s+\(([^)]+)\)',
+            block
+        )
+
+        if not header_match:
+            continue
+
+        test_method = header_match.group(1)
+        full_test_path = header_match.group(2)
+
+        # Extract test class and full name
+        # Format: test_module.TestClass.test_method
+        path_parts = full_test_path.split('.')
+        if len(path_parts) >= 3:
+            # Has module.Class.method
+            test_class = path_parts[-2]
+            test_name = full_test_path
+        elif len(path_parts) == 2:
+            # Has module.method (no class)
+            test_class = None
+            test_name = full_test_path
+        else:
+            # Just method name
+            test_class = None
+            test_name = test_method
+
+        # Extract test file path from traceback
+        # Pattern: File "/path/to/file.py", line X, in test_method
+        file_match = re.search(
+            r'File\s+"([^"]+)",\s+line\s+(\d+),\s+in\s+\w+',
+            block
+        )
+
+        test_file = file_match.group(1) if file_match else "unknown"
+        line_number = int(file_match.group(2)) if file_match else None
+
+        # Extract error type and message
+        # Pattern: ErrorType: error message
+        error_match = re.search(
+            r'(\w+Error):\s*(.+?)(?:\n|$)',
+            block,
+            re.MULTILINE
+        )
+
+        if error_match:
+            error_type = error_match.group(1)
+            error_message = error_match.group(2).strip()
+        else:
+            error_type = "Unknown"
+            error_message = "Test failed"
+
+        # Extract full traceback (everything after the dashed line)
+        traceback_match = re.search(
+            r'-{70,}\n(.+)',
+            block,
+            re.DOTALL
+        )
+
+        traceback = traceback_match.group(1).strip() if traceback_match else block
+
+        failures.append(FailingTest(
+            test_file=test_file,
+            test_name=test_name,
+            test_class=test_class,
+            test_method=test_method,
+            error_type=error_type,
+            error_message=error_message,
+            traceback=traceback,
+            line_number=line_number
+        ))
+
+    return failures
+
+
+# ============================================================================
 # IdentifyFailingTests Agent
 # ============================================================================
 
@@ -176,6 +338,9 @@ class IdentifyFailingTestsAgent:
         """
         Parse the test output and extract detailed information about each failing test.
 
+        For Python test files, this method uses the parse_unittest_failures tool
+        to extract structured information from unittest/pytest output.
+
         Args:
             test_result: The result from running tests
 
@@ -188,8 +353,24 @@ class IdentifyFailingTestsAgent:
 
         self.console.print(f"\n[bold yellow]Parsing {test_result.failed_tests} failing tests...[/bold yellow]\n")
 
-        failures = []
         stdout = test_result.stdout
+
+        # Check if this is Python unittest/pytest output by looking for unittest patterns
+        # Unittest format: "====== FAIL: test_name"
+        # Pytest format: "tests/test_file.py::TestClass::test_method FAILED"
+        is_unittest_format = '=' * 70 in stdout and 'FAIL:' in stdout
+        is_pytest_format = '::' in stdout and 'FAILED' in stdout and '.py' in stdout
+
+        if is_unittest_format:
+            # Use the parse_unittest_failures tool for unittest-style output
+            self.console.print("[cyan]Detected unittest format - using parse_unittest_failures tool[/cyan]")
+            failures = parse_unittest_failures(stdout)
+            self._display_failures(failures)
+            return failures
+
+        # Fall back to pytest parsing for pytest format
+        self.console.print("[cyan]Detected pytest format - using pytest parser[/cyan]")
+        failures = []
 
         # Parse pytest verbose output for FAILED lines
         # Format: tests/test_file.py::TestClass::test_method FAILED

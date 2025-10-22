@@ -126,7 +126,8 @@ class RefactoringAgent:
             self.console.print("[yellow]No classes found in the file.[/yellow]")
             self.console.print("[dim]The refactoring agent requires at least one class definition.[/dim]")
             self.console.print("[dim]If the file has a syntax error, it was reported above.[/dim]")
-            return False
+            # Return True since there's nothing to refactor (success by default)
+            return True
 
         # Create Claude service if not provided (for testing)
         if self.claude_service is None:
